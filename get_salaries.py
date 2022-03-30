@@ -1,9 +1,11 @@
 import csv
+import itertools
 import json
 import math
 import requests
 import subprocess
 from collections import defaultdict
+from pprint import pp
 
 from bs4 import BeautifulSoup
 
@@ -36,8 +38,12 @@ def extract_levels():
             with open(temp_js, "w") as f:
                 f.write(compensation_data_js)
                 f.write(JS_EXTRA_LINES)
-            jsonified_output = subprocess.run(["node", temp_js], capture_output=True)
-            compensation_list = json.loads(jsonified_output.stdout.decode("utf-8"))
+            jsonified_output = subprocess.run(
+                ["node", temp_js], capture_output=True
+            )
+            compensation_list = json.loads(
+                jsonified_output.stdout.decode("utf-8")
+            )
             for item in compensation_list:
                 item["tier"] = tier
                 item["seniority"] = seniority
@@ -45,7 +51,9 @@ def extract_levels():
 
             all_datapoints_dict[tier][seniority] = compensation_list
 
-    with open("techpays_data.csv", "w", encoding="utf8", newline="") as output_file:
+    with open(
+        "techpays_data.csv", "w", encoding="utf8", newline=""
+    ) as output_file:
         fc = csv.DictWriter(
             output_file,
             fieldnames=all_datapoints[0].keys(),
@@ -65,9 +73,21 @@ def percentile(data, percentile):
 
 def print_stats():
     for tier in TIERS:
+        print(f"Companies in tier {tier}:")
+        pp(
+            set(
+                [
+                    i["companyName"]
+                    for i in itertools.chain(
+                        *[v for v in all_datapoints_dict[tier].values()]
+                    )
+                ]
+            )
+        )
         for seniority in SENIORITY_LEVELS:
             base_dataset = [
-                i["baseSalaryNumber"] for i in all_datapoints_dict[tier][seniority]
+                i["baseSalaryNumber"]
+                for i in all_datapoints_dict[tier][seniority]
             ]
             total_comp_dataset = [
                 i["totalCompensationNumber"]
@@ -79,7 +99,9 @@ def print_stats():
             total_comp_p50 = percentile(total_comp_dataset, 50)
             total_comp_p75 = percentile(total_comp_dataset, 75)
             total_comp_p90 = percentile(total_comp_dataset, 90)
-            print(f"{tier} - {seniority} - datapoints used: {len(base_dataset)}")
+            print(
+                f"{tier} - {seniority} - datapoints used: {len(base_dataset)}"
+            )
             print(f"{tier} - {seniority} - base p50 = {base_p50}")
             print(f"{tier} - {seniority} - base p75 = {base_p75}")
             print(f"{tier} - {seniority} - base p90 = {base_p90}")
